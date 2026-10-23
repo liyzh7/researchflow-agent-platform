@@ -1,0 +1,57 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Project-local environments and tools
+.venv/
+.tools/
+.uv-cache/
+.cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Web dependencies, generated builds and sensitive browser artifacts
+node_modules/
+frontend/dist/
+.pnpm-store/
+test-results/
+playwright-report/
+playwright/.auth/
+frontend/.auth/
+
+# Release safety: runtime secrets, model weights and DB/browser exports are never source.
+.auth/
+storageState.json
+storage-state.json
+trace.zip
+*.dump
+*.backup
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.gguf
+*.safetensors
+*.pt
+*.pth
+
+# Local validation logs, exports and reports never belong to the source snapshot.
+*.log
+/reports/
+/backups/

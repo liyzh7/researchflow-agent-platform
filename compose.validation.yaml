@@ -1,0 +1,30 @@
+# Isolated, local P4 acceptance service. Never attach the development volume.
+name: researchflow-public-validation-p4
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg16-bookworm@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+    container_name: researchflow-public-validation-p4-postgres
+    environment:
+      POSTGRES_USER: researchflow
+      POSTGRES_PASSWORD: ${RESEARCHFLOW_P4_DATABASE_PASSWORD:?set a disposable test password}
+      POSTGRES_DB: researchflow_test
+    ports:
+      - "127.0.0.1:55443:5432"
+    volumes:
+      - validation-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U researchflow -d researchflow_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      - validation-network
+
+volumes:
+  validation-data:
+    name: researchflow-public-validation-p4-data
+
+networks:
+  validation-network:
+    name: researchflow-public-validation-p4-network

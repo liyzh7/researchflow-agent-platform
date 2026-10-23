@@ -1,0 +1,198 @@
+name: ResearchFlow CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# No raw artifacts/cache: credentials, traces, model caches and DB dumps stay ephemeral.
+# Deliberate artifact retention policy: upload nothing (0 days). See docs/ci.md for run history.
+env:
+  UV_VERSION: '0.12.21'
+  PYTHON_VERSION: '3.13.16'
+  NODE_VERSION: '24.19.0'
+  RESEARCHFLOW_ENVIRONMENT: test
+  RESEARCHFLOW_DATABASE_HOST: 127.0.0.1
+  RESEARCHFLOW_DATABASE_PORT: '5432'
+  RESEARCHFLOW_DATABASE_USER: researchflow
+  RESEARCHFLOW_DATABASE_NAME: researchflow_test
+  HF_HUB_OFFLINE: '1'
+  TRANSFORMERS_OFFLINE: '1'
+  # Integration fixtures require dedicated explicit settings; never read a developer .env.
+  RESEARCHFLOW_TEST_DATABASE_HOST: 127.0.0.1
+  RESEARCHFLOW_TEST_DATABASE_PORT: '5432'
+  RESEARCHFLOW_TEST_DATABASE_USER: researchflow
+  RESEARCHFLOW_TEST_DATABASE_PASSWORD: ci-synthetic-ephemeral-only
+
+jobs:
+  python:
+    name: A - Python quality and units (no AI weights)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      UV_PYTHON_DOWNLOADS: never
+      UV_PYTHON_PREFERENCE: only-system
+      # Public disposable test credential, never a production secret.
+      RESEARCHFLOW_DATABASE_PASSWORD: ci-synthetic-ephemeral-only
+    steps:
+      # Reduces later-step echo; initial step headers/service setup can still show this public value.
+      - name: Mask disposable database credential
+        run: echo "::add-mask::$RESEARCHFLOW_DATABASE_PASSWORD"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false
+      - name: Verify pinned Python discovery
+        run: |
+          python -c 'import os, platform; actual = platform.python_version(); print("Python", actual); assert actual == os.environ["PYTHON_VERSION"]'
+          uv python find "$PYTHON_VERSION"
+      - run: uv sync --locked --no-default-groups --group dev
+      - run: uv lock --check
+      - run: uv pip check
+      - run: uv run --no-sync ruff format --check .
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync python -m compileall -q src tests scripts migrations
+      - name: Pure units (explicit selection, not replacement of real-model tests)
+        run: >-
+          uv run --no-sync python -m pytest -q
+          -m 'not integration and not agent_postgres and not security_postgres and not real_embedding and not real_reranker and not real_llm'
+
+  postgres:
+    name: B - Real PostgreSQL, pgvector and durable Agent (deterministic AI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+        env:
+          POSTGRES_USER: researchflow
+          POSTGRES_PASSWORD: ci-synthetic-ephemeral-only
+          POSTGRES_DB: researchflow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U researchflow -d researchflow_test"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      UV_PYTHON_DOWNLOADS: never
+      UV_PYTHON_PREFERENCE: only-system
+      RESEARCHFLOW_DATABASE_PASSWORD: ci-synthetic-ephemeral-only
+      RESEARCHFLOW_RUN_INTEGRATION: '1'
+      RESEARCHFLOW_RUN_AGENT_POSTGRES: '1'
+      RESEARCHFLOW_RUN_SECURITY_POSTGRES: '1'
+    steps:
+      - name: Mask disposable database credential
+        run: echo "::add-mask::$RESEARCHFLOW_DATABASE_PASSWORD"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false
+      - name: Verify pinned Python discovery
+        run: |
+          python -c 'import os, platform; actual = platform.python_version(); print("Python", actual); assert actual == os.environ["PYTHON_VERSION"]'
+          uv python find "$PYTHON_VERSION"
+      - run: uv sync --locked --no-default-groups --group dev
+      - run: uv run --no-sync python -m scripts.prepare_test_databases
+      - name: Database integration (no dev DB, no host restarts/backup)
+        run: >-
+          uv run --no-sync python -m pytest -q
+          -m '(integration or agent_postgres or security_postgres) and not local_docker and not real_embedding and not real_reranker and not real_llm'
+
+  frontend:
+    name: C - Frontend locked build, types, format and units
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test
+
+  browser:
+    name: D - Chromium, real HTTP and PostgreSQL (MOCK AI, not Qwen/E5/BGE)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      UV_PYTHON_DOWNLOADS: never
+      UV_PYTHON_PREFERENCE: only-system
+      RESEARCHFLOW_DATABASE_PASSWORD: ci-synthetic-ephemeral-only
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+        env:
+          POSTGRES_USER: researchflow
+          POSTGRES_PASSWORD: ci-synthetic-ephemeral-only
+          POSTGRES_DB: researchflow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U researchflow -d researchflow_test"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    steps:
+      - name: Mask disposable database credential
+        run: echo "::add-mask::$RESEARCHFLOW_DATABASE_PASSWORD"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false
+      - name: Verify pinned Python discovery
+        run: |
+          python -c 'import os, platform; actual = platform.python_version(); print("Python", actual); assert actual == os.environ["PYTHON_VERSION"]'
+          uv python find "$PYTHON_VERSION"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: uv sync --locked --no-default-groups --group dev
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm --dir frontend install --frozen-lockfile
+      # Standard ephemeral runner only; preflight HEAD measured shell + ffmpeg at
+      # 128,100,240 compressed bytes for this lock. OS apt dependencies vary by runner.
+      # No full Chrome (another 200,345,244 bytes), Firefox or WebKit.
+      - run: pnpm --dir frontend exec playwright install --dry-run --only-shell chromium
+      - run: pnpm --dir frontend exec playwright install --with-deps --only-shell chromium
+      - run: uv run --no-sync python -m scripts.validate_web --mode mock
+      - name: HTTP-mocked UI boundary (separate from real backend integration)
+        env:
+          RESEARCHFLOW_UI_MOCK_ONLY: '1'
+        run: pnpm --dir frontend exec playwright test --project=ui-mock

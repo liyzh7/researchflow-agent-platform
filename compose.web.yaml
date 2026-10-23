@@ -1,0 +1,40 @@
+# Explicit override: docker compose -f compose.yaml -f compose.web.yaml ...
+# Uses only the candidate-specific postgres service/volume. Migrations are manual.
+services:
+  api:
+    image: researchflow-api:0.8.0-rc.1-basic
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    environment:
+      RESEARCHFLOW_ENVIRONMENT: local
+      RESEARCHFLOW_DATABASE_HOST: postgres
+      RESEARCHFLOW_DATABASE_PORT: 5432
+      RESEARCHFLOW_DATABASE_NAME: researchflow_web_demo_test
+      RESEARCHFLOW_DATABASE_USER: researchflow
+      RESEARCHFLOW_DATABASE_PASSWORD: ${RESEARCHFLOW_DATABASE_PASSWORD:?set in ignored .env}
+      RESEARCHFLOW_LLM_PROVIDER_MODE: mock
+      RESEARCHFLOW_RAG_ENABLED: 'false'
+      RESEARCHFLOW_AGENT_ENABLED: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [researchflow-network]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+  web:
+    image: researchflow-web:0.8.0-rc.1
+    build:
+      context: frontend
+    ports: ['127.0.0.1:8080:8080']
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [researchflow-network]
+    security_opt: [no-new-privileges:true]
