@@ -1,52 +1,36 @@
-# 独立候选的 CI 与验证边界
+# 独立展示仓库的 CI 与验证边界
 
-**独立公开版 GitHub Actions 尚待验证。** 本地候选未创建 Git 仓库，没有新远端运行和绿色 Badge。
-原私有仓库的历史运行、截图、评测输出和测试总数没有被纳入候选的通过证明。
+状态记录：2026-10-24（P7b）。[新展示仓库](https://github.com/liyzh7/researchflow-agent-platform)已建立，仍为 **Private，尚未切换 Public**。P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)由 main push 触发，attempt=1，四个 Job 均 SUCCESS，Artifact=0。
 
-`.github/workflows/ci.yml` 保留以下四组意图，实际成功与数量必须在新候选运行后记录：
+该 Run 只属于上述根提交。本轮 P7b 只作本地 Markdown 文档提交、尚未 Push，**新文档提交尚无自身 SHA 的 GitHub CI 结果**。后续获授权 Push 后需核验新 SHA 的自动运行。原私库的运行、截图、评测输出和测试总数不作为此新仓验收证据；当前仍未部署生产环境。
 
-| 组 | 设计范围 | 限制 |
+## P6 实际云端分组
+
+| Job | 实际范围及通过数 | failed / skipped / deselected |
 | --- | --- | --- |
-| A | Python 格式、静态检查、依赖锁、不依赖模型的单元测试 | 不运行真实模型和数据库组 |
-| B | 独立 PostgreSQL/pgvector、身份隔离、Checkpoint、审批事务 | 使用确定性 AI；排除本机 Docker 重启/备份与真实模型 |
-| C | 前端 TypeScript、格式、构建和 Vitest | 不证明后端行为 |
-| D | Chromium、真实 HTTP / PostgreSQL、Playwright Mock AI | 不下载 E5/BGE/Qwen 或执行真实模型推理 |
+| [A - Python quality and units (no AI weights)](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698/job/120770675107) | Python 单元 204 passed；锁文件、依赖、Ruff、compileall通过 | 0 / 0 / 103 |
+| [B - Real PostgreSQL, pgvector and durable Agent (deterministic AI)](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698/job/120770675370) | 95 passed；真实 PostgreSQL/pgvector、迁移、隔离、Checkpoint、审批事务与回滚 | 0 / 0 / 212 |
+| [C - Frontend locked build, types, format and units](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698/job/120770675619) | Vitest 4 passed；类型、格式、构建及通知生成通过 | 0 / 0 / 不适用 |
+| [D - Chromium, real HTTP and PostgreSQL (MOCK AI, not Qwen/E5/BGE)](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698/job/120770675744) | 真实 HTTP/PG + Mock AI 8 passed；另有全 HTTP Mock UI 3 passed | 两组均 0 / 0 / 不适用 |
 
-新增 `ui-mock` Playwright 项目完全模拟 HTTP，用于页面行为验证，与真实 HTTP / 数据库 Mock AI 分开报告。
-旧真实模型浏览器脚本、截图和历史证据不在候选中。
+A/B 互斥合计 299 个不同 Python 用例。Provider 的 61 项（9+52 参数化）已包含在 A 中，不另加到299，也没有单独的云端 Provider Job。A 的103 deselected包含95数据库+3本机Docker+5真实模型；B 的212 deselected包含204单元+3本机Docker+5真实模型。103与212不可相加为315个独立未验证用例，不计作通过或跳过。
 
-## 工作流限制
+两个Job合起来仍未执行的是 **5项真实模型+3项本机Docker专项**。真实模型为E5向量/Tokenizer、BGE、LLM及真实E5/BGE+PG组合；本机Docker为容器重启文档/索引持久化、备份恢复。没有删除测试或将其替换成Mock PASS。云端B/D确实使用数据库；推理是确定性Mock，不是Qwen/E5/BGE质量、阈值校准或真实TLS/生产安全验收。
 
-使用普通 `push` / `pull_request` / `workflow_dispatch` 和 `contents: read`。
-Action 引用固定完整 SHA，checkout 不持久化认证；没有自动部署、新建远端仓库、发布、镜像推送或 Artifact/cache 上传步骤。
-一次性测试凭据是公开合成值，不能复用于真实实例。禁止接入开发数据库、真实模型密钥或本地浏览器账户。
+D的8项检查登录撤销、合成上传/去重/索引/引用、审批重放单次写入、编辑重审与旧审批失效、拒绝、用户隔离、超时恢复、无效UTF-8及恢复。另3项ui-mock完全模拟HTTP，只证明UI合约；不能将8+3统称为全部真实HTTP/数据库测试。旧真实模型浏览器脚本、9张历史截图及所有HOLD语料/标签/模型输出继续排除。
 
-依赖按锁文件安装，核心 Python 路径显式使用 `--no-default-groups --group dev`。
-CI 的 PostgreSQL 是临时 runner 内服务；不能把本机命名卷映射进 CI。
-运行不可信 PR 仍会执行其代码，未来创建远端后需单独决定分支保护、required checks 和外部 PR 审批。
-固定 SHA 与最小权限不等同于这些远端规则已经启用。
+## 本地 P4 记录与云端的区别
 
-## 结果记录规则
+2026-10-23 最后一次候选本地 P4 复验使用全新55444隔离实例：Python 299 passed / 0 failed / 5 skipped / 3 deselected，其中95数据库通过，Provider61已包含；真实模型5项因未准备而跳过，前轮专用容器的3项Docker未执行而deselected。前端Vitest4、真实HTTP/数据库/MockAI浏览器8、全HTTP Mock UI3分别通过。
 
-本地和将来云端运行分别记录命令、环境、passed、failed、skipped、deselected 和错误。
-未启动数据库、缺少浏览器或未准备模型的组必须明确写未运行或阻塞原因。
-Mock AI 不能算真实模型验收；deselected 不能算 passed 或 skipped。
-替换测试材料后应重新运行相关链路，不能用原测试总数维持展示。
+同日更早一轮P4的302 passed / 5 skipped / 0 deselected属于历史，包含当时运行的3项本机Docker测试；它不代替最后复验或P6中未运行的Docker专项。当前浏览器验收以已补编辑重审的8项为准，历史原始证据未改写。
 
-旧语料/标签/模型输出权利未决，已从候选范围排除。
-当前候选的合成输入和测试变动应保留来源记录，未来不能根据旧冻结评测宣称可复现同样质量。
+本地使用Chrome155（Chromium内核）及Node24.22.1；P6标准GitHub-hosted ubuntu-24.04实际使用Python3.13.16、uv0.12.21、Node24.19.0、pnpm11.25.0、Playwright1.64.1和Chromium Headless Shell156.0.8078.4/v1248。PostgreSQL16.15、pgvector扩展0.8.7，不能与Python pgvector客户端0.5.0混称。详细复现入口见 [本地验收](local-validation.md)。P7b没有重跑这些测试或下载依赖/模型。
 
-## P4本地非真实模型基线
+## 工作流、费用与材料边界
 
-2026-10-23本地Python完整307项为302 passed / 5 skipped / 0 failed / 0 deselected。
-302包含204项单元（其中61项Provider）、95项数据库和3项本地Docker测试，不重复计算子集。
-前端Vitest4项；Playwright真实HTTP/数据库/MockAI7项、全HTTP Mock UI3项。
-真实模型的5项跳过没有删除或换标记。静态、格式、构建及许可证通知生成均通过。
+workflow仅普通push/pull_request/workflow_dispatch，contents:read；Action固定完整SHA，checkout不持久化凭据，无pull_request_target、高权限Token、部署、发布、镜像推送或Artifact/cache上传。四Job仅标准ubuntu-24.04，临时PG服务无本机卷。Artifact0、Cache0，浏览器截图/trace/录像/凭据状态不上传。
 
-未来四个Job的可核对范围为A单元204、B数据库95、C前端4、D真实HTTP浏览器7加UI-only3；
-这只是应在新CI实测的基线，不是该工作流已运行成功。3项本地Docker测试不进入云端B组。
-本机使用已有Chrome155（Chromium内核）及Node24.22.1，CI仍固定Linux、Node24.19.0和
-Playwright1.64.1的Chromium headless shell。没有为本轮下载浏览器或升级锁文件。
-完整隔离/持久化测试入口见 [本地验收](local-validation.md)。
+核心Python安装显式--no-default-groups --group dev，HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE启用；未安装AI/CUDA组、下载E5/BGE/Qwen或调用收费API。公开一次性测试口令不能复用于真实实例。运行不可信PR仍会执行其代码，Public Fork审批和main保护未验证为已启用，需另行配置与审批。
 
-本轮全新55444实例复验为299 passed / 5 skipped / 3 deselected，数据库95项通过；未重跑前轮容器的3项Docker测试。浏览器真实HTTP组已补编辑重审场景为8项，UI-only3项，前端4项；新离线frozen安装后实际执行。前轮302/5仅为历史。
+只分发经过审查的源码、配置与必要文档，不分发模型权重、CUDA/NVIDIA包、Wheel、镜像或可执行程序。NVIDIA五项仍NEEDS REVIEW；完整模型许可附件和未来制品的再分发义务未清关，源码公开不意味着所有依赖制品已获再分发许可。见 [许可审查](license-review.md)与[材料来源](materials-provenance.md)。

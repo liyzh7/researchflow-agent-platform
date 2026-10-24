@@ -4,6 +4,19 @@
 Embedding、Reranker 和 LLM 使用明确注入的确定性实现，不验证真实 E5/BGE/Qwen 的效果。
 素材均为新编的卡片/托盘/计数物文本，旧截图、冻结标签、语料和模型输出继续排除。
 
+## 已有验收记录与本次状态
+
+状态记录：2026-10-24（P7b）。[新展示仓库](https://github.com/liyzh7/researchflow-agent-platform)仍为Private，未切换Public。P6根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次CI](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)四Job均SUCCESS；本轮仅本地文档提交、未Push，新文档提交尚无自身SHA的CI。以下命令是复现入口，不表示P7b重新运行。
+
+| 证据阶段 | Python | 浏览器与前端 | 未执行项 |
+| --- | --- | --- | --- |
+| 2026-10-23最后P4本地复验，独立55444实例 | 299 passed / 0 failed / 5 skipped / 3 deselected；Provider61包含在299中 | 真实HTTP/PG/MockAI8 passed；全HTTP Mock UI3 passed；Vitest4 passed | 5真实模型、3前轮专用容器Docker专项 |
+| P6首次云端，精确根提交见上 | A204 passed/103 deselected；B95 passed/212 deselected；均failed0/skipped0，互斥合计299 | D真实HTTP/PG/MockAI8 passed；全HTTP Mock UI3 passed；C Vitest4 passed与质量/构建通过 | 同上，云端按marker排除 |
+
+更早P4的302 passed/5 skipped包含当时3项Docker通过，仅作历史，不能代替这两轮未执行的专项。云端两个deselected数是各自筛选结果，不能相加为独立未测用例。Mock AI不验证真实模型质量；P7b未重跑数据库、Docker或模型测试。
+
+下方55443端口属于compose.validation.yaml现有复现配置；最后一次P4证据的55444属于另一次全新隔离环境，不声称两者是同一实例，也不在本次修改Docker配置。不得复用原开发数据库。
+
 ## 独立服务
 
 `compose.validation.yaml` 使用项目 `researchflow-public-validation-p4`、回环端口55443、
@@ -66,7 +79,7 @@ pnpm --dir frontend exec playwright test --project=ui-mock
 ```
 
 第一组使用真实 HTTP、单独 `researchflow_web_e2e_test` 数据库和 Mock AI，检查登录撤销、
-上传/重复导入、RAG引用、审批幂等、拒绝、跨用户访问和失败工作流恢复。
+上传/重复导入、RAG引用、审批幂等、编辑重审及旧审批失效、拒绝、跨用户访问、失败工作流恢复和无效UTF-8恢复，共8项；另有3项全HTTP Mock UI，分别计数。
 受控的单次Provider超时仅存在测试服务中，不是产品API的故障开关。
 第二组完全模拟HTTP响应，只验证UI边界；两组分别计数。
 
@@ -75,7 +88,7 @@ pnpm --dir frontend exec playwright test --project=ui-mock
 脚本最终移除本次临时登录凭据；截图、trace和视频均关闭，不保存浏览器状态。
 
 普通本地配置使用已有Chrome（Chromium内核）；CI在临时Linux runner安装锁版本的Chromium headless shell。
-两种环境应分别记录。本机运行不等于已验证未来的精确CI镜像、Node patch版本或浏览器二进制。
+两种环境分别记录：本机Chrome155/Node24.22.1与P6的Linux/Node24.19.0/headless shell不同，不能相互代替验收。P6真实环境和精确根提交见 [ci.md](ci.md)，新文档提交尚无新的云端运行。
 
 测试完仅停止本次专用服务即可保留重现材料：
 

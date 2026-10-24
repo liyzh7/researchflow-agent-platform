@@ -4,8 +4,9 @@
 Research Knowledge & Workflow Agent Platform。
 
 这是用于展示 AI Agent / LLM 应用工程能力的独立源码候选，应用版本为 `0.8.0rc1`。
-**当前未部署生产环境；独立公开版 GitHub Actions CI 尚待验证。**
-本目录尚未建立 Git 仓库，也没有可引用的新仓库 CI 运行记录。
+**当前未部署生产环境。** 新展示仓库为 [liyzh7/researchflow-agent-platform](https://github.com/liyzh7/researchflow-agent-platform)。状态记录：2026-10-24（P7b），仓库仍为 **Private，尚未切换 Public**。
+P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 CI Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)四个 Job 均 SUCCESS，Artifact=0。
+该证据只属于上述根提交；本轮 Markdown 文档修订仅在本地提交、尚未 Push，**新文档提交尚无自身 SHA 对应的 GitHub CI 结果**。
 
 ResearchFlow 连接“导入自有文档 → 检索证据 → 引用问答或任务草案 → 人工审批 → 写入任务”。
 重点展示模型接口与业务逻辑的分离、RAG 证据校验、可恢复的 Agent 流程，以及真实数据库事务和权限边界。
@@ -72,14 +73,24 @@ docker compose up -d --wait postgres
 本候选不携带旧截图、旧评测语料/标签或模型输出，也不将原私有仓库的历史测试总数、
 模型质量指标和 CI 链接用作本候选验证证据。新编输入及生成方式见 [测试素材来源](docs/materials-provenance.md)。
 
-2026-10-23 本轮全新55444隔离环境复验：Python **299 passed / 5 skipped / 0 failed / 3 deselected**。
+2026-10-23 候选本地 P4 最后一次复验（全新55444隔离环境）：Python **299 passed / 5 skipped / 0 failed / 3 deselected**。
 Provider **61 passed** 已包含在299内；95项PostgreSQL/Agent集成通过。5项跳过是真实模型，
-3项deselected是绑定前轮专用容器的本地Docker测试，本轮未操作该已有环境；前轮302/5结果仅作历史。
+3项deselected是绑定前轮专用容器的本地Docker测试，该轮未操作该已有环境；前轮302/5结果仅作历史。
 TypeScript、格式、构建、锁定离线安装、Vitest **4 passed**；真实HTTP + PostgreSQL + Mock AI浏览器
 **8 passed**，含编辑后重新审批及旧草案失效；全HTTP Mock UI **3 passed**。
-本轮使用全新数据库、专用Volume和临时合成凭据，不复用开发数据。
-本机Chrome155（Chromium内核）及Node24.22.1，与未来Linux/Node24.19.0/headless shell组合分别记录。
-独立云端CI、真实模型质量及新材料校准尚待验证。复现入口见 [本地验收](docs/local-validation.md)。
+该轮使用全新数据库、专用Volume和临时合成凭据，不复用开发数据。
+本机Chrome155（Chromium内核）及Node24.22.1，与P6实际Linux/Node24.19.0/headless shell组合分别记录。
+这是本地 P4 记录，不是本轮重跑。P6 云端结果按实际 Job 分组如下：
+
+| 云端组 | 实际结果 |
+| --- | --- |
+| A Python 单元 | 204 passed / 0 failed / 0 skipped / 103 deselected |
+| B PostgreSQL / Agent | 95 passed / 0 failed / 0 skipped / 212 deselected；真实数据库，确定性 AI |
+| C 前端 | Vitest 4 passed，类型/格式/构建通过 |
+| D 浏览器：真实 HTTP + PostgreSQL + Mock AI | 8 passed / 0 failed / 0 skipped |
+| D 浏览器：全 HTTP Mock UI | 3 passed / 0 failed / 0 skipped；不证明真实数据库行为 |
+
+A/B 互斥合计 **299 个 Python 用例**，Provider 61 项已包含其中，不另加；103/212 是各 Job 的筛选结果，不能相加当成独立未测组，也不是 passed 或 skipped。**5 项真实模型测试、3 项本机 Docker 专项在 P4 最后复验与 P6 中均未执行**；P4 中表现为5 skipped/3 deselected，P6中按标记排除。云端使用 Mock AI，不是实际 Qwen/E5/BGE 推理质量测试；真实模型质量及新材料校准仍未验证。复现与环境差别见 [本地验收](docs/local-validation.md)，完整分组见 [CI 说明](docs/ci.md)。
 
 E5/BGE 的固定 revision、Qwen GGUF 来源与参考校验值见 [模型说明](docs/models.md)。
 真实 RAG 要求显式提供经过自己校准的 EvidenceGate 阈值；旧阈值不构成本候选的新质量证明。
