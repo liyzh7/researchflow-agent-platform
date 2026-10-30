@@ -1,12 +1,14 @@
 # ResearchFlow
 
+[![CI](https://github.com/liyzh7/researchflow-agent-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/liyzh7/researchflow-agent-platform/actions/workflows/ci.yml?query=branch%3Amain)
+
 面向科研文献与技术文档的本地知识库、证据问答和人工审批工作台。
 Research Knowledge & Workflow Agent Platform。
 
 这是用于展示 AI Agent / LLM 应用工程能力的独立源码候选，应用版本为 `0.8.0rc1`。
-**当前未部署生产环境。** 新展示仓库为 [liyzh7/researchflow-agent-platform](https://github.com/liyzh7/researchflow-agent-platform)。状态记录：2026-10-24（P7b），仓库仍为 **Private，尚未切换 Public**。
-P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 CI Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)四个 Job 均 SUCCESS，Artifact=0。
-该证据只属于上述根提交；本轮 Markdown 文档修订仅在本地提交、尚未 Push，**新文档提交尚无自身 SHA 对应的 GitHub CI 结果**。
+**未部署生产环境。** 源码仓库为 [liyzh7/researchflow-agent-platform](https://github.com/liyzh7/researchflow-agent-platform)。上方动态 CI Badge 跟踪 `main` 分支；每次运行只验证该 Run 记录的 `head_sha`，历史成功不自动证明后续提交。
+
+P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 CI Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)四个 Job 均 SUCCESS，Artifact=0。文档提交 `132b0634f3113f6dcddaa280f690a547a0106ff2` 的[Run 40999503085](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40999503085)四个 Job 也均 SUCCESS。当前分支的运行状态应通过 Badge 和对应 Run 核对，不能把这些历史记录归到其他 SHA。
 
 ResearchFlow 连接“导入自有文档 → 检索证据 → 引用问答或任务草案 → 人工审批 → 写入任务”。
 重点展示模型接口与业务逻辑的分离、RAG 证据校验、可恢复的 Agent 流程，以及真实数据库事务和权限边界。
@@ -69,7 +71,7 @@ docker compose up -d --wait postgres
 | Playwright Mock AI | 真实浏览器交互；明确标注的确定性模型或故障注入 | 真实 AI 的答案质量 |
 | 真实本地 AI | 已准备好的 E5/BGE/Qwen、自己的文档、人工逐项审查 | 一般科研正确性、专家背书或生产安全 |
 
-本次准备不下载模型、不调用收费 API。真实 AI 验收尚待在新材料上重新执行。
+基础验证路径不下载模型、不调用收费 API。真实 AI 验收尚待在新材料上重新执行。
 本候选不携带旧截图、旧评测语料/标签或模型输出，也不将原私有仓库的历史测试总数、
 模型质量指标和 CI 链接用作本候选验证证据。新编输入及生成方式见 [测试素材来源](docs/materials-provenance.md)。
 
@@ -80,7 +82,7 @@ TypeScript、格式、构建、锁定离线安装、Vitest **4 passed**；真实
 **8 passed**，含编辑后重新审批及旧草案失效；全HTTP Mock UI **3 passed**。
 该轮使用全新数据库、专用Volume和临时合成凭据，不复用开发数据。
 本机Chrome155（Chromium内核）及Node24.22.1，与P6实际Linux/Node24.19.0/headless shell组合分别记录。
-这是本地 P4 记录，不是本轮重跑。P6 云端结果按实际 Job 分组如下：
+这是本地 P4 历史记录；P6 云端结果按实际 Job 分组如下：
 
 | 云端组 | 实际结果 |
 | --- | --- |

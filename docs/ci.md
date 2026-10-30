@@ -1,8 +1,13 @@
 # 独立展示仓库的 CI 与验证边界
 
-状态记录：2026-10-24（P7b）。[新展示仓库](https://github.com/liyzh7/researchflow-agent-platform)已建立，仍为 **Private，尚未切换 Public**。P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)由 main push 触发，attempt=1，四个 Job 均 SUCCESS，Artifact=0。
+[源码仓库](https://github.com/liyzh7/researchflow-agent-platform)的 [main 工作流](https://github.com/liyzh7/researchflow-agent-platform/actions/workflows/ci.yml?query=branch%3Amain)提供分支运行记录；README 的动态 Badge 跟踪 `main`。每个 Run 的结果只属于其精确 `head_sha`，不能把历史通过记录归给其他提交。
 
-该 Run 只属于上述根提交。本轮 P7b 只作本地 Markdown 文档提交、尚未 Push，**新文档提交尚无自身 SHA 的 GitHub CI 结果**。后续获授权 Push 后需核验新 SHA 的自动运行。原私库的运行、截图、评测输出和测试总数不作为此新仓验收证据；当前仍未部署生产环境。
+已核实的历史运行：
+
+- P6 根提交 `4a234f7a05603f642c7418f59142ecfdce636173` 的[首次 Run 40059814698](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40059814698)：main push、attempt=1、四个 Job 均 SUCCESS，Artifact=0。
+- 文档提交 `132b0634f3113f6dcddaa280f690a547a0106ff2` 的[Run 40999503085](https://github.com/liyzh7/researchflow-agent-platform/actions/runs/40999503085)：四个 Job 均 SUCCESS。
+
+原私库的运行、截图、评测输出和测试总数不作为此新仓验收证据；项目未部署生产环境。
 
 ## P6 实际云端分组
 
@@ -25,12 +30,12 @@ D的8项检查登录撤销、合成上传/去重/索引/引用、审批重放单
 
 同日更早一轮P4的302 passed / 5 skipped / 0 deselected属于历史，包含当时运行的3项本机Docker测试；它不代替最后复验或P6中未运行的Docker专项。当前浏览器验收以已补编辑重审的8项为准，历史原始证据未改写。
 
-本地使用Chrome155（Chromium内核）及Node24.22.1；P6标准GitHub-hosted ubuntu-24.04实际使用Python3.13.16、uv0.12.21、Node24.19.0、pnpm11.25.0、Playwright1.64.1和Chromium Headless Shell156.0.8078.4/v1248。PostgreSQL16.15、pgvector扩展0.8.7，不能与Python pgvector客户端0.5.0混称。详细复现入口见 [本地验收](local-validation.md)。P7b没有重跑这些测试或下载依赖/模型。
+本地使用Chrome155（Chromium内核）及Node24.22.1；P6标准GitHub-hosted ubuntu-24.04实际使用Python3.13.16、uv0.12.21、Node24.19.0、pnpm11.25.0、Playwright1.64.1和Chromium Headless Shell156.0.8078.4/v1248。PostgreSQL16.15、pgvector扩展0.8.7，不能与Python pgvector客户端0.5.0混称。详细复现入口见 [本地验收](local-validation.md)。这些版本与结果属于上述历史运行，不能代替其他环境或后续 SHA 的实测。
 
 ## 工作流、费用与材料边界
 
 workflow仅普通push/pull_request/workflow_dispatch，contents:read；Action固定完整SHA，checkout不持久化凭据，无pull_request_target、高权限Token、部署、发布、镜像推送或Artifact/cache上传。四Job仅标准ubuntu-24.04，临时PG服务无本机卷。Artifact0、Cache0，浏览器截图/trace/录像/凭据状态不上传。
 
-核心Python安装显式--no-default-groups --group dev，HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE启用；未安装AI/CUDA组、下载E5/BGE/Qwen或调用收费API。公开一次性测试口令不能复用于真实实例。运行不可信PR仍会执行其代码，Public Fork审批和main保护未验证为已启用，需另行配置与审批。
+核心Python安装显式--no-default-groups --group dev，HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE启用；未安装AI/CUDA组、下载E5/BGE/Qwen或调用收费API。公开一次性测试口令不能复用于真实实例。运行不可信PR仍会执行其代码，Fork审批与main保护以仓库实际设置为准；固定Action SHA、只读Token和成功CI不能证明这些规则已启用。
 
 只分发经过审查的源码、配置与必要文档，不分发模型权重、CUDA/NVIDIA包、Wheel、镜像或可执行程序。NVIDIA五项仍NEEDS REVIEW；完整模型许可附件和未来制品的再分发义务未清关，源码公开不意味着所有依赖制品已获再分发许可。见 [许可审查](license-review.md)与[材料来源](materials-provenance.md)。
